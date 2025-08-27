@@ -1,15 +1,384 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum UserVisibility {
+  PUBLIC
+  FRIENDSONLY
+  PRIVATE
+}
+
+enum Category {
+  MOVIES
+  SERIES
+  ANIMES
+  BOOKS
+  MANGAS
+}
+
+enum ContentVisibility {
+  PUBLIC
+  UNLISTED
+  PRIVATE
+}
+
+enum ConsumptionStatus {
+  TO_WATCH
+  WATCHING
+  FINISHED
+}
+
+enum EmojiType {
+  LIKE
+  LOVE
+  FIRE
+  SAD
+  WOW
+  LAUGH
+}
+
+enum NotificationType {
+  FOLLOW
+  COMMENT
+  ANNOTATION_REACTION
+  ALBUM_INVITE
+  ALBUM_UPDATE
+  REMINDER
+  ACHIEVEMENT
+  SYSTEM
+}
+
+enum ReactionEntity {
+  CONTENT
+  COMMENT
+  ANNOTATION
+  ALBUM
+}
+
+enum FollowRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum EntityType {
+  CONTENT
+  ALBUM
+  COMMENT
+  ANNOTATION
+  USER
+}
+
+enum ActivityType {
+  CONTENT_CREATE
+  ALBUM_UPDATE
+  COMMENT
+  ANNOTATION
+  FOLLOW
+}
+
+model User {
+  id               String        @id @default(uuid())
+  name             String?
+  email            String        @unique
+  username         String?       @unique
+  passwordHash     String?
+  isEmailVerified  Boolean       @default(false)
+  isDemo           Boolean       @default(false)
+  visibility       UserVisibility @default(PRIVATE)
+  avatarUrl        String?
+  bio              String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  deletedAt        DateTime?
+
+  contents         Content[] 
+  albums           Album[]       @relation("AlbumOwner")
+  annotations      Annotation[]
+  comments         Comment[]
+  notifications    Notification[]
+  activities       Activity[] 
+  uploads          Media[]
+
+  followers        Follower[]    @relation("FollowingRelation")
+  following        Follower[]    @relation("FollowerRelation")
+
+  followRequestsSent     FollowRequest[] @relation("SentRequests")
+  followRequestsReceived FollowRequest[] @relation("ReceivedRequests")
+
+  @@index([isDemo])
+  @@index([username])
+}
+
+model Follower {
+  id           String   @id @default(cuid())
+  follower     User     @relation("FollowerRelation", fields: [followerId], references: [id], onDelete: Cascade)
+  followerId   String
+  following    User     @relation("FollowingRelation", fields: [followingId], references: [id], onDelete: Cascade)
+  followingId  String
+  createdAt    DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+  @@index([followerId])
+}
+
+model FollowRequest {
+  id            String   @id @default(cuid())
+  from          User     @relation("SentRequests", fields: [fromId], references: [id], onDelete: Cascade)
+  fromId        String
+  to            User     @relation("ReceivedRequests", fields: [toId], references: [id], onDelete: Cascade)
+  toId          String
+  message       String?
+  status        FollowRequestStatus @default(PENDING)
+  createdAt     DateTime @default(now())
+  respondedAt   DateTime?
+
+  @@unique([fromId, toId])
+}
+
+model Content {
+  id             String            @id @default(uuid())
+  owner          User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId        String
+  title          String
+  description    String?
+  category       Category
+  coverUrl       String?          
+  visibility     ContentVisibility @default(PRIVATE)
+  status         ConsumptionStatus @default(TO_WATCH)
+  rating         Float?
+  isFavorite     Boolean  @default(false)
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  annotations    Annotation[]
+  comments       Comment[]
+  albumLinks     AlbumOnContent[]
+  reactions      Reaction[]         @relation("ContentReactions")
+  activities     Activity[]         @relation("ContentActivities")
+  shareToken     ShareToken?        @relation(fields: [shareTokenId], references: [id], onDelete: SetNull)
+  shareTokenId   String?
+
+  copiedFrom     Content?           @relation("CopiedContents", fields: [copiedFromId], references: [id])
+  copiedFromId   String?
+  copiedTo       Content[]          @relation("CopiedContents")
+
+  @@index([ownerId])
+  @@index([category, visibility])
+}
+
+model ShareToken {
+  id          String    @id @default(cuid())
+  token       String    @unique
+  entityType  EntityType
+  entityId    String
+  createdAt   DateTime  @default(now())
+  createdBy   User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String?
+}
+
+model Album {
+  id            String         @id @default(uuid())
+  owner         User           @relation("AlbumOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId       String
+  title         String
+  description   String?
+  coverUrl      String?
+  visibility    ContentVisibility @default(PRIVATE)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+
+  contents      AlbumOnContent[]
+  collaborators AlbumCollaborator[]
+  favorites     AlbumFavorite[]
+  activities    Activity[]     @relation("AlbumActivities")
+  shareToken    ShareToken?    @relation(fields: [shareTokenId], references: [id], onDelete: SetNull)
+  shareTokenId  String?
+
+  @@index([ownerId])
+  @@index([visibility])
+}
+
+model AlbumOnContent {
+  id         String   @id @default(cuid())
+  album      Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  albumId    String
+  content    Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  contentId  String
+  orderIndex Int?
+  addedAt    DateTime @default(now())
+
+  @@unique([albumId, contentId])
+  @@index([contentId])
+}
+
+model AlbumCollaborator {
+  id        String   @id @default(cuid())
+  album     Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  albumId   String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  addedAt   DateTime @default(now())
+
+  @@unique([albumId, userId])
+}
+
+model AlbumFavorite {
+  id       String   @id @default(cuid())
+  album    Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  albumId  String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String
+  createdAt DateTime @default(now())
+
+  @@unique([albumId, userId])
+  @@index([userId])
+}
+
+model Comment {
+  id             String    @id @default(cuid())
+  author         User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId       String
+  content        Content?  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  contentId      String?
+  album          Album?    @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  albumId        String?
+  parentComment  Comment?  @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  parentCommentId String?
+  replies        Comment[] @relation("CommentReplies")
+  text           String
+  isPinned       Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  reactions      Reaction[] @relation("CommentReactions")
+
+  @@index([contentId])
+  @@index([authorId])
+}
+
+model Annotation {
+  id          String    @id @default(cuid())
+  content     Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  contentId   String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  text        String
+  isPinned    Boolean   @default(false)
+  isPublic    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  reactions   Reaction[]  @relation("AnnotationReactions")
+  shareToken  ShareToken? @relation(fields: [shareTokenId], references: [id], onDelete: SetNull)
+  shareTokenId String?
+
+  @@index([contentId])
+  @@index([userId])
+}
+
+model Reaction {
+  id         String         @id @default(cuid())
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  entityType ReactionEntity
+  entityId   String
+  emoji      EmojiType
+  createdAt  DateTime       @default(now())
+
+  @@unique([userId, entityType, entityId, emoji])
+  @@index([entityType, entityId])
+  @@index([userId])
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  type       NotificationType
+  message    String
+  entityType EntityType?
+  entityId   String?
+  metadata   Json?
+  isRead     Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+  expiresAt  DateTime?
+
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+}
+
+model Activity {
+  id         String      @id @default(cuid())
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  type       ActivityType
+  entityId   String?
+  entityType EntityType?
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+
+  @@index([userId, createdAt])
+  @@index([type])
+}
+
+model SeedContent {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  category    Category
+  coverUrl    String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([category])
+}
+
+model Invite {
+  id         String   @id @default(cuid())
+  from       User     @relation(fields: [fromId], references: [id], onDelete: Cascade)
+  fromId     String
+  toUser     User?    @relation(fields: [toUserId], references: [id], onDelete: SetNull)
+  toUserId   String?
+  toEmail    String?
+  album      Album?   @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  albumId    String?
+  message    String?
+  status     FollowRequestStatus @default(PENDING)
+  token      String   @unique
+  createdAt  DateTime @default(now())
+  respondedAt DateTime?
+}
+
+model Favorite {
+  id         String   @id @default(cuid())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  content    Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  contentId  String
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, contentId])
+  @@index([contentId])
+}
+
+model DemoQuota {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @unique
+  date      DateTime
+  createdCount Int    @default(0)
+  updatedAt DateTime  @updatedAt
 }
