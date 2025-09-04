@@ -76,43 +76,59 @@ enum EntityType {
 
 enum ActivityType {
   CONTENT_CREATE
+  CONTENT_UPDATE
+  ALBUM_CREATE
   ALBUM_UPDATE
   COMMENT
   ANNOTATION
   FOLLOW
+  FAVORITE
 }
 
 model User {
-  id               String        @id @default(uuid())
+  id               String           @id @default(uuid())
   name             String?
-  email            String        @unique
-  username         String?       @unique
+  email            String           @unique
+  username         String?          @unique
   passwordHash     String?
-  isEmailVerified  Boolean       @default(false)
-  isDemo           Boolean       @default(false)
-  visibility       UserVisibility @default(PRIVATE)
+  isEmailVerified  Boolean          @default(false)
+  isDemo           Boolean          @default(false)
+  visibility       UserVisibility   @default(PRIVATE)
   avatarUrl        String?
   bio              String?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  commentsEnabled  Boolean          @default(true)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
   deletedAt        DateTime?
 
   contents         Content[] 
-  albums           Album[]       @relation("AlbumOwner")
+  albums           Album[]          @relation("AlbumOwner")
   annotations      Annotation[]
   comments         Comment[]
   notifications    Notification[]
   activities       Activity[] 
   uploads          Media[]
+  reactions        Reaction[]
+  favorites        Favorite[]
+  albumFavorites   AlbumFavorite[]
+  shareTokensCreated ShareToken[]
 
-  followers        Follower[]    @relation("FollowingRelation")
-  following        Follower[]    @relation("FollowerRelation")
+  followers        Follower[]       @relation("FollowingRelation")
+  following        Follower[]       @relation("FollowerRelation")
 
   followRequestsSent     FollowRequest[] @relation("SentRequests")
   followRequestsReceived FollowRequest[] @relation("ReceivedRequests")
 
+  albumCollaborations AlbumCollaborator[]
+  invitesSent        Invite[]         @relation("InviteFrom")
+  invitesReceived    Invite[]         @relation("InviteTo")
+  
+  demoQuota        DemoQuota?
+
   @@index([isDemo])
   @@index([username])
+  @@index([email])
+  @@index([visibility])
 }
 
 model Follower {
@@ -129,17 +145,19 @@ model Follower {
 }
 
 model FollowRequest {
-  id            String   @id @default(cuid())
-  from          User     @relation("SentRequests", fields: [fromId], references: [id], onDelete: Cascade)
+  id            String              @id @default(cuid())
+  from          User                @relation("SentRequests", fields: [fromId], references: [id], onDelete: Cascade)
   fromId        String
-  to            User     @relation("ReceivedRequests", fields: [toId], references: [id], onDelete: Cascade)
+  to            User                @relation("ReceivedRequests", fields: [toId], references: [id], onDelete: Cascade)
   toId          String
   message       String?
   status        FollowRequestStatus @default(PENDING)
-  createdAt     DateTime @default(now())
+  createdAt     DateTime            @default(now())
   respondedAt   DateTime?
 
   @@unique([fromId, toId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Content {
@@ -152,61 +170,79 @@ model Content {
   coverUrl       String?          
   visibility     ContentVisibility @default(PRIVATE)
   status         ConsumptionStatus @default(TO_WATCH)
-  rating         Float?
-  isFavorite     Boolean  @default(false)
+  rating         Float?            @db.Real
+  isFavorite     Boolean           @default(false)
   startedAt      DateTime?
   finishedAt     DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
   deletedAt      DateTime?
 
   annotations    Annotation[]
   comments       Comment[]
   albumLinks     AlbumOnContent[]
-  reactions      Reaction[]         @relation("ContentReactions")
-  activities     Activity[]         @relation("ContentActivities")
-  shareToken     ShareToken?        @relation(fields: [shareTokenId], references: [id], onDelete: SetNull)
-  shareTokenId   String?
+  reactions      Reaction[]        @relation("ContentReactions")
+  activities     Activity[]        @relation("ContentActivities")
+  favorites      Favorite[]
+  shareToken     ShareToken?       @relation("ContentShareToken", fields: [shareTokenId], references: [id], onDelete: SetNull)
+  shareTokenId   String?           @unique
 
-  copiedFrom     Content?           @relation("CopiedContents", fields: [copiedFromId], references: [id])
+  copiedFrom     Content?          @relation("CopiedContents", fields: [copiedFromId], references: [id])
   copiedFromId   String?
-  copiedTo       Content[]          @relation("CopiedContents")
+  copiedTo       Content[]         @relation("CopiedContents")
 
   @@index([ownerId])
   @@index([category, visibility])
+  @@index([status, ownerId])
+  @@index([isFavorite, ownerId])
+  @@index([createdAt])
+  @@index([rating])
 }
 
 model ShareToken {
-  id          String    @id @default(cuid())
-  token       String    @unique
+  id          String     @id @default(cuid())
+  token       String     @unique
   entityType  EntityType
   entityId    String
-  createdAt   DateTime  @default(now())
-  createdBy   User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  createdById String?
+  createdAt   DateTime   @default(now())
+  createdBy   User       @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdById String
+  expiresAt   DateTime?
+  
+  // Relations for different entities
+  contents    Content[]  @relation("ContentShareToken")
+  albums      Album[]    @relation("AlbumShareToken")
+  annotations Annotation[] @relation("AnnotationShareToken")
+
+  @@index([token])
+  @@index([entityType, entityId])
+  @@index([expiresAt])
 }
 
 model Album {
-  id            String         @id @default(uuid())
-  owner         User           @relation("AlbumOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  id            String            @id @default(uuid())
+  owner         User              @relation("AlbumOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   ownerId       String
   title         String
   description   String?
   coverUrl      String?
   visibility    ContentVisibility @default(PRIVATE)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
   deletedAt     DateTime?
 
   contents      AlbumOnContent[]
   collaborators AlbumCollaborator[]
   favorites     AlbumFavorite[]
-  activities    Activity[]     @relation("AlbumActivities")
-  shareToken    ShareToken?    @relation(fields: [shareTokenId], references: [id], onDelete: SetNull)
-  shareTokenId  String?
+  comments      Comment[]
+  activities    Activity[]        @relation("AlbumActivities")
+  shareToken    ShareToken?       @relation("AlbumShareToken", fields: [shareTokenId], references: [id], onDelete: SetNull)
+  shareTokenId  String?           @unique
+  invites       Invite[]
 
   @@index([ownerId])
   @@index([visibility])
+  @@index([createdAt])
 }
 
 model AlbumOnContent {
@@ -217,9 +253,11 @@ model AlbumOnContent {
   contentId  String
   orderIndex Int?
   addedAt    DateTime @default(now())
+  addedBy    String?  // ID do usuário que adicionou (pode ser colaborador)
 
   @@unique([albumId, contentId])
   @@index([contentId])
+  @@index([orderIndex])
 }
 
 model AlbumCollaborator {
@@ -231,6 +269,7 @@ model AlbumCollaborator {
   addedAt   DateTime @default(now())
 
   @@unique([albumId, userId])
+  @@index([userId])
 }
 
 model AlbumFavorite {
@@ -243,6 +282,7 @@ model AlbumFavorite {
 
   @@unique([albumId, userId])
   @@index([userId])
+  @@index([createdAt])
 }
 
 model Comment {
@@ -265,7 +305,10 @@ model Comment {
   reactions      Reaction[] @relation("CommentReactions")
 
   @@index([contentId])
+  @@index([albumId])
   @@index([authorId])
+  @@index([createdAt])
+  @@index([isPinned, createdAt])
 }
 
 model Annotation {
@@ -282,11 +325,13 @@ model Annotation {
   deletedAt   DateTime?
 
   reactions   Reaction[]  @relation("AnnotationReactions")
-  shareToken  ShareToken? @relation(fields: [shareTokenId], references: [id], onDelete: SetNull)
-  shareTokenId String?
+  shareToken  ShareToken? @relation("AnnotationShareToken", fields: [shareTokenId], references: [id], onDelete: SetNull)
+  shareTokenId String?    @unique
 
   @@index([contentId])
   @@index([userId])
+  @@index([isPublic, contentId])
+  @@index([isPinned, createdAt])
 }
 
 model Reaction {
@@ -298,9 +343,18 @@ model Reaction {
   emoji      EmojiType
   createdAt  DateTime       @default(now())
 
+  // Relations específicas para evitar problemas de referência
+  content    Content?       @relation("ContentReactions", fields: [contentId], references: [id], onDelete: Cascade)
+  contentId  String?
+  comment    Comment?       @relation("CommentReactions", fields: [commentId], references: [id], onDelete: Cascade)
+  commentId  String?
+  annotation Annotation?    @relation("AnnotationReactions", fields: [annotationId], references: [id], onDelete: Cascade)
+  annotationId String?
+
   @@unique([userId, entityType, entityId, emoji])
   @@index([entityType, entityId])
   @@index([userId])
+  @@index([createdAt])
 }
 
 model Notification {
@@ -317,7 +371,9 @@ model Notification {
   expiresAt  DateTime?
 
   @@index([userId, createdAt])
+  @@index([userId, isRead])
   @@index([entityType, entityId])
+  @@index([expiresAt])
 }
 
 model Activity {
@@ -330,8 +386,15 @@ model Activity {
   metadata   Json?
   createdAt  DateTime    @default(now())
 
+  // Relations específicas para melhor performance
+  content    Content?    @relation("ContentActivities", fields: [contentId], references: [id], onDelete: Cascade)
+  contentId  String?
+  album      Album?      @relation("AlbumActivities", fields: [albumId], references: [id], onDelete: Cascade)
+  albumId    String?
+
   @@index([userId, createdAt])
-  @@index([type])
+  @@index([type, createdAt])
+  @@index([entityType, entityId])
 }
 
 model SeedContent {
@@ -344,22 +407,29 @@ model SeedContent {
   createdAt   DateTime @default(now())
 
   @@index([category])
+  @@index([title])
 }
 
 model Invite {
-  id         String   @id @default(cuid())
-  from       User     @relation(fields: [fromId], references: [id], onDelete: Cascade)
+  id         String              @id @default(cuid())
+  from       User                @relation("InviteFrom", fields: [fromId], references: [id], onDelete: Cascade)
   fromId     String
-  toUser     User?    @relation(fields: [toUserId], references: [id], onDelete: SetNull)
+  toUser     User?               @relation("InviteTo", fields: [toUserId], references: [id], onDelete: SetNull)
   toUserId   String?
   toEmail    String?
-  album      Album?   @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  album      Album?              @relation(fields: [albumId], references: [id], onDelete: Cascade)
   albumId    String?
   message    String?
   status     FollowRequestStatus @default(PENDING)
-  token      String   @unique
-  createdAt  DateTime @default(now())
+  token      String              @unique
+  createdAt  DateTime            @default(now())
   respondedAt DateTime?
+  expiresAt  DateTime?
+
+  @@index([token])
+  @@index([status])
+  @@index([toEmail])
+  @@index([expiresAt])
 }
 
 model Favorite {
@@ -372,13 +442,31 @@ model Favorite {
 
   @@unique([userId, contentId])
   @@index([contentId])
+  @@index([userId, createdAt])
 }
 
 model DemoQuota {
-  id        String   @id @default(cuid())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String   @unique
-  date      DateTime
-  createdCount Int    @default(0)
-  updatedAt DateTime  @updatedAt
+  id           String   @id @default(cuid())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String   @unique
+  date         DateTime @db.Date
+  createdCount Int      @default(0)
+  maxAllowed   Int      @default(50) // Limite configurável
+  updatedAt    DateTime @updatedAt
+
+  @@index([date])
+}
+
+model Media {
+  id           String   @id @default(cuid())
+  url          String
+  filename     String?
+  mimetype     String?
+  size         Int?
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  @@index([uploadedById])
+  @@index([createdAt])
 }
