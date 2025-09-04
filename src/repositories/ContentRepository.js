@@ -1,4 +1,4 @@
-import prisma from '../database/client.js';
+import { prisma } from '../database/client.js';
 
 class ContentRepository {
   async findAllWithPagination(where, skip, take, orderBy) {
