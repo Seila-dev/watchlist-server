@@ -76,31 +76,8 @@ npm start
 - `npm run prisma:studio` - Abre interface visual do banco
 - `npm run prisma:reset` - Reset completo do banco
 
-## API Endpoints
-
-### Health Check
-- `GET /api/health` - Status básico da API
-- `GET /api/health/detailed` - Status detalhado com verificação de serviços
-- `GET /api/health/ready` - Readiness probe (Kubernetes)
-- `GET /api/health/live` - Liveness probe (Kubernetes)
-
 ### Conteúdo
-- `GET /api/content` - Lista conteúdos (público/usuário)
-- `GET /api/content/:id` - Detalhes de um conteúdo
-- `GET /api/content/category/:category` - Conteúdos por categoria
-- `GET /api/content/user/my-contents` - Conteúdos do usuário logado
-- `POST /api/content` - Criar novo conteúdo
-- `PUT /api/content/:id` - Atualizar conteúdo
-- `DELETE /api/content/:id` - Deletar conteúdo (soft delete)
-
-### Upload de Arquivos
-- `POST /api/upload/single` - Upload de arquivo único
-- `POST /api/upload/multiple` - Upload de múltiplos arquivos
-- `DELETE /api/upload/:key` - Deletar arquivo
-- `GET /api/upload/info/:key` - Informações do arquivo
-- `GET /api/upload/signed/:key` - URL assinada para acesso
-
-## Validações
+- EM PRODUÇÃO
 
 ### Conteúdo
 - **title**: obrigatório, 1-255 caracteres
@@ -198,16 +175,10 @@ docker run -p 3001:3001 --env-file .env backend-node
 - `DATABASE_URL` - String de conexão PostgreSQL
 - `REDIS_URL` - URL do Redis
 - `R2_*` - Credenciais do Cloudflare R2
-- `NODE_ENV=production`
 
 ## Monitoramento
 
-### Health Checks
-- `/api/health/ready` para readiness probes
-- `/api/health/live` para liveness probes
-- `/api/health/detailed` para status completo
-
-### Métricas
+### Métricas (EM TESTE)
 - Tempo de resposta de requests
 - Status de conexões (DB, Redis, R2)
 - Uso de memória
