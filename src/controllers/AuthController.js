@@ -4,7 +4,8 @@ import nodemailer from 'nodemailer';
 
 export class AuthController {
   generateCode() {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    Math.floor(100000 + Math.random() * 900000).toString();
+    return
   }
 
   async sendEmail(to, subject, content) {
@@ -32,13 +33,15 @@ export class AuthController {
       const { email } = req.body;
 
       if (!email) {
-        return res.status(400).json({ message: 'Email é obrigatório' });
+        res.status(400).json({ message: 'Email é obrigatório' });
+        return
       }
 
       const user = await prisma.user.findUnique({ where: { email } });
 
       if (!user) {
-        return res.status(404).json({ message: 'Usuário não encontrado' });
+        res.status(404).json({ message: 'Usuário não encontrado' });
+        return
       }
 
       await prisma.emailVerificationCode.deleteMany({ where: { email } });
@@ -68,7 +71,8 @@ export class AuthController {
       const { email, code } = req.body;
 
       if (!email || !code) {
-        return res.status(400).json({ message: 'Email e código são obrigatórios' });
+        res.status(400).json({ message: 'Email e código são obrigatórios' });
+        return
       }
 
       const verificationCode = await prisma.emailVerificationCode.findFirst({
@@ -81,7 +85,8 @@ export class AuthController {
       });
 
       if (!verificationCode) {
-        return res.status(400).json({ message: 'Código inválido ou expirado' });
+        res.status(400).json({ message: 'Código inválido ou expirado' });
+        return
       }
 
       await prisma.emailVerificationCode.update({
@@ -106,13 +111,15 @@ export class AuthController {
       const { email } = req.body;
 
       if (!email) {
-        return res.status(400).json({ message: 'Email é obrigatório' });
+        res.status(400).json({ message: 'Email é obrigatório' });
+        return
       }
 
       const user = await prisma.user.findUnique({ where: { email } });
 
       if (!user) {
-        return res.status(404).json({ message: 'Usuário não encontrado' });
+        res.status(404).json({ message: 'Usuário não encontrado' });
+        return
       }
 
       await prisma.passwordResetCode.deleteMany({ where: { email } });
@@ -142,7 +149,8 @@ export class AuthController {
       const { email, code } = req.body;
 
       if (!email || !code) {
-        return res.status(400).json({ message: 'Email e código são obrigatórios' });
+        res.status(400).json({ message: 'Email e código são obrigatórios' });
+        return
       }
 
       const resetCode = await prisma.passwordResetCode.findFirst({
@@ -155,7 +163,8 @@ export class AuthController {
       });
 
       if (!resetCode) {
-        return res.status(400).json({ message: 'Código inválido ou expirado' });
+        res.status(400).json({ message: 'Código inválido ou expirado' });
+        return
       }
 
       res.json({ message: 'Código válido', valid: true });
@@ -170,7 +179,8 @@ export class AuthController {
       const { email, code, newPassword } = req.body;
 
       if (!email || !code || !newPassword) {
-        return res.status(400).json({ message: 'Email, código e nova senha são obrigatórios' });
+        res.status(400).json({ message: 'Email, código e nova senha são obrigatórios' });
+        return
       }
 
       const resetCode = await prisma.passwordResetCode.findFirst({
@@ -183,7 +193,8 @@ export class AuthController {
       });
 
       if (!resetCode) {
-        return res.status(400).json({ message: 'Código inválido ou expirado' });
+        res.status(400).json({ message: 'Código inválido ou expirado' });
+        return
       }
 
       await prisma.passwordResetCode.update({
