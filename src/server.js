@@ -57,7 +57,7 @@ app.use((req, res) => {
 // Error handler global
 // app.use(errorHandler);
 
-const port = process.env.PORT || 3001;
+const port = process.env.PORT;
 
 app.listen(port, () => {
   console.log(`Server is running on port http://localhost:${port}`);
