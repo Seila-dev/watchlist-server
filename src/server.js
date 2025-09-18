@@ -7,7 +7,9 @@ import rateLimit from 'express-rate-limit';
 // import { requestLogger } from './middlewares/Auth.js';
 
 // Importar rotas
-import contentRoutes from './routes/contentRoutes.js';
+import contentRoutes from './routes/ContentRoutes.js';
+import usersRoutes from './routes/UsersRoutes.js';
+import authRouter from './routes/AuthRoutes.js'
 
 export const app = express();
 
@@ -25,8 +27,11 @@ const limiter = rateLimit({
 app.use(limiter);
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
+  origin: [
+    'http://localhost:3000',
+    'https://your-watchlist.vercel.app',
+  ],
+  credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -36,6 +41,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Rotas
 app.use('/content', contentRoutes);
+app.use("/auth", authRouter)
+app.use("/users", usersRoutes)
 
 // 404 handler
 app.use((req, res) => {
