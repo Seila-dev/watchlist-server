@@ -4,8 +4,7 @@ import nodemailer from 'nodemailer';
 
 export class AuthController {
   generateCode() {
-    Math.floor(100000 + Math.random() * 900000).toString();
-    return
+    return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
   async sendEmail(to, subject, content) {
