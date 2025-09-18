@@ -13,6 +13,8 @@ import authRouter from './routes/AuthRoutes.js'
 
 export const app = express();
 
+app.set("trust proxy", 1);
+
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
