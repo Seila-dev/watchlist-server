@@ -7,7 +7,7 @@ import rateLimit from 'express-rate-limit';
 // import { requestLogger } from './middlewares/Auth.js';
 
 // Importar rotas
-import contentRoutes from './routes/contentRoutes.js';
+import contentRoutes from './routes/ContentRoutes.js';
 
 export const app = express();
 

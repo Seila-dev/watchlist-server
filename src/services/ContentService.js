@@ -76,7 +76,7 @@ class ContentService {
       const orDesc = tags.map((t) => ({ description: { contains: t, mode: 'insensitive' } }));
       where.OR = [...orContains, ...orDesc];
     }
-
+    
     // Try Algolia similarity first
     try {
       if (algolia.enabled) {
@@ -92,11 +92,10 @@ class ContentService {
           if (items.length > 0) return items.slice(0, Number(limit));
         }
       }
-    } catch (_) {
-      // ignore Algolia errors and fallback to DB
+    } catch (error) {
+      console.error('Algolia recommendations error:', error);
     }
 
-    // Fallback to DB similarity by text
     const fallbackItems = await ContentRepository.findAllWithPagination(
       where,
       0,
