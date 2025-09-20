@@ -8,8 +8,12 @@ import rateLimit from 'express-rate-limit';
 
 // Importar rotas
 import contentRoutes from './routes/ContentRoutes.js';
+import usersRoutes from './routes/UsersRoutes.js';
+import authRouter from './routes/AuthRoutes.js';
 
 export const app = express();
+
+app.set("trust proxy", 1);
 
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
@@ -25,8 +29,11 @@ const limiter = rateLimit({
 app.use(limiter);
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
+  origin: [
+    'http://localhost:3000',
+    'https://your-watchlist.vercel.app',
+  ],
+  credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -36,6 +43,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Rotas
 app.use('/content', contentRoutes);
+app.use("/auth", authRouter)
+app.use("/users", usersRoutes)
 
 // 404 handler
 app.use((req, res) => {
@@ -48,7 +57,7 @@ app.use((req, res) => {
 // Error handler global
 // app.use(errorHandler);
 
-const port = process.env.PORT || 3001;
+const port = process.env.PORT;
 
 app.listen(port, () => {
   console.log(`Server is running on port http://localhost:${port}`);
