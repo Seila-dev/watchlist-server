@@ -13,6 +13,17 @@ class ContentRepository {
     });
   }
 
+  async findManyByIds(ids, where = {}, orderBy) {
+    if (!Array.isArray(ids) || ids.length === 0) return [];
+    return await prisma.content.findMany({
+      where: { ...where, id: { in: ids } },
+      orderBy,
+      include: {
+        owner: { select: { id: true, username: true } },
+      },
+    });
+  }
+
   async count(where) {
     return await prisma.content.count({ where });
   }

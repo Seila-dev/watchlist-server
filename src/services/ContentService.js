@@ -1,4 +1,5 @@
 import ContentRepository from '../repositories/ContentRepository.js';
+import algolia from '../utils/Algolia.js';
 
 class ContentService {
   async listContents(userId, query) {
@@ -76,14 +77,34 @@ class ContentService {
       where.OR = [...orContains, ...orDesc];
     }
 
-    const items = await ContentRepository.findAllWithPagination(
+    // Try Algolia similarity first
+    try {
+      if (algolia.enabled) {
+        const ids = await algolia.searchSimilar({
+          category: authorized.category,
+          tags,
+          limit,
+        });
+        if (ids.length > 0) {
+          const orderBy = [{ favorites: { _count: 'desc' } }, { createdAt: 'desc' }];
+          const items = await ContentRepository.findManyByIds(ids, where, orderBy);
+          // If Algolia returned something, prefer it. If empty due to filters, fall back
+          if (items.length > 0) return items.slice(0, Number(limit));
+        }
+      }
+    } catch (_) {
+      // ignore Algolia errors and fallback to DB
+    }
+
+    // Fallback to DB similarity by text
+    const fallbackItems = await ContentRepository.findAllWithPagination(
       where,
       0,
       Number(limit),
       [{ favorites: { _count: 'desc' } }, { createdAt: 'desc' }]
     );
 
-    return items;
+    return fallbackItems;
   }
 }
 
