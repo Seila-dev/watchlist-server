@@ -108,6 +108,68 @@ class ContentController {
       return res.status(500).json({ error: 'Internal Server Error' });
     }
   }
+
+  async testAlgolia(req, res) {
+    try {
+      const algolia = await import('../utils/Algolia.js');
+      const { category, tags, limit } = req.query;
+
+      // Teste básico de conectividade
+      const testResult = {
+        algoliaEnabled: algolia.default.enabled,
+        hasIndex: !!algolia.default.index,
+        timestamp: new Date().toISOString(),
+        testQuery: {
+          category: category || 'MOVIES',
+          tags: tags ? tags.split(',') : ['action', 'drama'],
+          limit: parseInt(limit) || 5
+        }
+      };
+
+      if (!algolia.default.enabled) {
+        return res.status(200).json({
+          ...testResult,
+          message: 'Algolia não está configurado (variáveis de ambiente ausentes)',
+          envVars: {
+            ALGOLIA_APP_ID: !!process.env.ALGOLIA_APP_ID,
+            ALGOLIA_ADMIN_KEY: !!process.env.ALGOLIA_ADMIN_KEY,
+            ALGOLIA_INDEX_NAME: process.env.ALGOLIA_INDEX_NAME || 'contents'
+          }
+        });
+      }
+
+      // Teste de busca
+      try {
+        const searchResults = await algolia.default.searchSimilar({
+          category: category || 'MOVIES',
+          tags: tags ? tags.split(',') : ['action', 'drama'],
+          limit: parseInt(limit) || 5
+        });
+
+        return res.status(200).json({
+          ...testResult,
+          searchResults,
+          message: 'Algolia funcionando corretamente!',
+          resultsCount: searchResults.length
+        });
+
+      } catch (searchError) {
+        return res.status(200).json({
+          ...testResult,
+          message: 'Algolia configurado mas erro na busca',
+          searchError: searchError.message,
+          errorCode: searchError.code
+        });
+      }
+
+    } catch (error) {
+      console.error('Test Algolia error:', error);
+      return res.status(500).json({ 
+        error: 'Erro ao testar Algolia',
+        details: error.message 
+      });
+    }
+  }
 }
 
 export default new ContentController();
