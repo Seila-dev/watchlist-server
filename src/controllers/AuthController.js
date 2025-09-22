@@ -1,6 +1,8 @@
 import { prisma } from '../database/client.js';
 import bcrypt from 'bcryptjs';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export class AuthController {
   generateCode() {
@@ -8,38 +10,28 @@ export class AuthController {
   }
 
   async sendEmail(to, subject, content) {
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT),
-      secure: 587, // true para 465, false para 587
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-      logger: true,
-      debug: true,
-    });
-
-    await transporter.sendMail({
-      from: `"Watchlist App" <${process.env.SMTP_USER}>`,
-      to,
-      subject,
-      text: content,
-      html: `<p>${content}</p>`,
-    });
+    try {
+      await resend.emails.send({
+        from: 'Watchlist App <no-reply@resend.com>',
+        to,
+        subject,
+        html: `<p>${content}</p>`,
+      });
+    } catch (err) {
+      console.error('Erro ao enviar e-mail via Resend:', err);
+      throw err;
+    }
   }
 
   async sendVerificationCode(req, res) {
     try {
       const { email } = req.body;
-
       if (!email) {
         res.status(400).json({ message: 'Email é obrigatório' });
         return
       }
 
       const user = await prisma.user.findUnique({ where: { email } });
-
       if (!user) {
         res.status(404).json({ message: 'Usuário não encontrado' });
         return
@@ -48,7 +40,7 @@ export class AuthController {
       await prisma.emailVerificationCode.deleteMany({ where: { email } });
 
       const code = this.generateCode();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10m
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
 
       await prisma.emailVerificationCode.create({
         data: { email, code, expiresAt },
