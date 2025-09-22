@@ -5,27 +5,53 @@ import auth from '../middlewares/Auth.js';
 const router = Router();
 
 router.get(
-    '/contents', 
-    auth, 
-    (req, res) => ContentController.getContents(req, res)
+  '/', 
+  auth, 
+  (req, res) => ContentController.getContents(req, res)
 );
 
 router.get(
-    '/contents/:id/recommendations',
-    auth,
-    (req, res) => ContentController.getRecommendations(req, res)
+  '/:id/recommendations',
+  auth,
+  (req, res) => ContentController.getRecommendations(req, res)
 );
 
 router.get(
-    '/contents/:category', 
-    auth, 
-    (req, res) => ContentController.getContentsByCategory(req, res)
+  '/category/:category', 
+  auth, 
+  (req, res) => ContentController.getContentsByCategory(req, res)
 );
 
 router.get(
-    '/contents/:id',
-    auth,
-    (req, res) => ContentController.getContentById(req, res)
+  '/:id',
+  auth,
+  (req, res) => ContentController.getContentById(req, res)
+);
+
+// Algolia end-points
+
+// Testar configuração do Algolia
+router.get(
+  '/algolia/test',
+  auth,
+  // adminAuth,
+  (req, res) => ContentController.testAlgolia(req, res)
+);
+
+// Reindexar todos os conteúdos no Algolia
+router.post(
+  '/algolia/reindex',
+  auth,
+  // adminAuth,
+  (req, res) => ContentController.reindexContent(req, res)
+);
+
+// Busca direta no Algolia (para debugging)
+router.get(
+  '/algolia/search',
+  auth,
+  // adminAuth,
+  (req, res) => ContentController.searchAlgolia(req, res)
 );
 
 export default router;
