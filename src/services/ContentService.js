@@ -1,5 +1,6 @@
 import ContentRepository from '../repositories/ContentRepository.js';
 import algolia from '../utils/Algolia.js';
+import { r2Storage } from '../storage/ConfigR2.js';
 
 class ContentService {
   async createContent(userId, data) {
@@ -269,6 +270,133 @@ class ContentService {
       console.error('Error reindexing content:', error);
       throw error;
     }
+  }
+
+  async createShareLink(userId, contentId, { expiresInHours } = {}) {
+    const content = await ContentRepository.findById(contentId);
+    if (!content) {
+      const error = new Error('Conteúdo não encontrado');
+      error.code = 404;
+      throw error;
+    }
+    if (content.ownerId !== userId) {
+      const error = new Error('Acesso negado ao conteúdo');
+      error.code = 403;
+      throw error;
+    }
+
+    const tokenValue = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    const expiresAt = typeof expiresInHours === 'number' && expiresInHours > 0
+      ? new Date(Date.now() + expiresInHours * 60 * 60 * 1000)
+      : null;
+
+    const shareToken = await ContentRepository.createShareToken({
+      token: tokenValue,
+      entityType: 'CONTENT',
+      entityId: contentId,
+      createdById: userId,
+      expiresAt,
+    });
+
+    await ContentRepository.updateContentShareToken(contentId, shareToken.id);
+
+    const base = (process.env.FRONTEND_URL || 'http://localhost:3001').replace(/\/?$/, '');
+    return {
+      token: shareToken.token,
+      shareTokenId: shareToken.id,
+      expiresAt: shareToken.expiresAt,
+      url: `${base}/share/${shareToken.token}`
+    };
+  }
+
+  async updateContent(userId, id, data) {
+    const existing = await ContentRepository.findByIdForOwnerChecks(id);
+    if (!existing) {
+      const error = new Error('Conteúdo não encontrado');
+      error.code = 404;
+      throw error;
+    }
+    if (existing.ownerId !== userId) {
+      const error = new Error('Acesso negado');
+      error.code = 403;
+      throw error;
+    }
+
+    const updatable = {};
+    const fields = ['title','description','category','coverUrl','visibility','status','rating','isFavorite','startedAt','finishedAt'];
+    for (const key of fields) {
+      if (key in data) {
+        updatable[key] = data[key];
+      }
+    }
+
+    if ('rating' in updatable && updatable.rating !== undefined) {
+      updatable.rating = Number(updatable.rating);
+    }
+    if ('isFavorite' in updatable && updatable.isFavorite !== undefined) {
+      updatable.isFavorite = Boolean(updatable.isFavorite);
+    }
+    if ('startedAt' in updatable && updatable.startedAt) {
+      updatable.startedAt = new Date(updatable.startedAt);
+    }
+    if ('finishedAt' in updatable && updatable.finishedAt) {
+      updatable.finishedAt = new Date(updatable.finishedAt);
+    }
+
+    const updated = await ContentRepository.updateById(id, updatable);
+
+    if (algolia.enabled) {
+      try {
+        await algolia.partialUpdateObject({
+          objectID: updated.id,
+          title: updated.title,
+          description: updated.description || '',
+          category: updated.category,
+          visibility: updated.visibility,
+          updatedAt: updated.updatedAt,
+        });
+      } catch (e) {
+        console.error('Algolia update error:', e);
+      }
+    }
+
+    return updated;
+  }
+
+  async deleteContent(userId, id) {
+    const existing = await ContentRepository.findByIdForOwnerChecks(id);
+    if (!existing) {
+      const error = new Error('Conteúdo não encontrado');
+      error.code = 404;
+      throw error;
+    }
+    if (existing.ownerId !== userId) {
+      const error = new Error('Acesso negado');
+      error.code = 403;
+      throw error;
+    }
+
+    if (existing.coverUrl && typeof existing.coverUrl === 'string') {
+      try {
+        const url = new URL(existing.coverUrl);
+        const key = url.pathname.startsWith('/') ? url.pathname.slice(1) : url.pathname;
+        if (key) {
+          await r2Storage.deleteFile(key);
+        }
+      } catch (_) {}
+    }
+
+    await ContentRepository.softDeleteById(id, new Date());
+
+    if (algolia.enabled) {
+      try {
+        await algolia.deleteObject(id);
+      } catch (e) {
+        console.error('Algolia delete error:', e);
+      }
+    }
+
+    return { id };
   }
 }
 

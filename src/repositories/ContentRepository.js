@@ -31,7 +31,7 @@ class ContentRepository {
   async findById(id) {
     return await prisma.content.findFirst({
       where: { id, deletedAt: null },
-      select: { id: true, ownerId: true, visibility: true },
+      select: { id: true, ownerId: true, visibility: true, shareTokenId: true },
     });
   }
 
@@ -58,6 +58,52 @@ class ContentRepository {
           },
         },
       },
+    });
+  }
+
+  async create(data) {
+    return await prisma.content.create({
+      data,
+      include: {
+        owner: { select: { id: true, username: true } },
+      },
+    });
+  }
+
+  async createShareToken(data) {
+    return await prisma.shareToken.create({ data });
+  }
+
+  async updateContentShareToken(contentId, shareTokenId) {
+    return await prisma.content.update({
+      where: { id: contentId },
+      data: { shareTokenId },
+      select: { id: true, shareTokenId: true },
+    });
+  }
+
+  async findByIdForOwnerChecks(id) {
+    return await prisma.content.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true, ownerId: true, coverUrl: true, visibility: true },
+    });
+  }
+
+  async updateById(id, data) {
+    return await prisma.content.update({
+      where: { id },
+      data,
+      include: {
+        owner: { select: { id: true, username: true } },
+      },
+    });
+  }
+
+  async softDeleteById(id, deletedAt = new Date()) {
+    return await prisma.content.update({
+      where: { id },
+      data: { deletedAt },
+      select: { id: true },
     });
   }
 }

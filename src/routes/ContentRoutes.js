@@ -28,6 +28,31 @@ router.get(
   (req, res) => ContentController.getContentById(req, res)
 );
 
+
+router.post(
+  '/',
+  auth,
+  (req, res) => ContentController.createContent(req, res)
+);
+
+router.post(
+  '/:id/share-link',
+  auth,
+  (req, res) => ContentController.createShareLink(req, res)
+);
+
+router.patch(
+  '/:id',
+  auth,
+  (req, res) => ContentController.updateContent(req, res)
+);
+
+router.delete(
+  '/:id',
+  auth,
+  (req, res) => ContentController.deleteContent(req, res)
+);
+
 // Algolia end-points
 
 // Testar configuração do Algolia
