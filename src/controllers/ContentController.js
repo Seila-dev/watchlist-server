@@ -347,6 +347,92 @@ class ContentController {
       });
     }
   }
+
+  async createContent(req, res) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: 'Não autorizado!' });
+      }
+
+      const body = req.body || {};
+
+      try {
+        const created = await ContentService.createContent(userId, body);
+        return res.status(201).json(created);
+      } catch (error) {
+        if (error?.code === 400) {
+          return res.status(400).json({ error: error.message || 'Dados inválidos' });
+        }
+        throw error;
+      }
+    } catch (error) {
+      console.error('POST /contents error:', error);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+  }
+
+  async createShareLink(req, res) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: 'Não autorizado!' });
+      }
+
+      const { id } = req.params;
+      const { expiresInHours } = req.body || {};
+
+      try {
+        const result = await ContentService.createShareLink(userId, id, { expiresInHours: typeof expiresInHours === 'number' ? expiresInHours : undefined });
+        return res.status(201).json(result);
+      } catch (error) {
+        if (error?.code === 403) {
+          return res.status(403).json({ error: 'Acesso negado!' });
+        }
+        if (error?.code === 404) {
+          return res.status(404).json({ error: 'Conteúdo não encontrado.' });
+        }
+        return res.status(400).json({ error: error.message || 'Requisição inválida' });
+      }
+    } catch (error) {
+      console.error('POST /contents/:id/share-link error:', error);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+  }
+
+  async updateContent(req, res) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Não autorizado!' });
+      const { id } = req.params;
+      const body = req.body || {};
+
+      const updated = await ContentService.updateContent(userId, id, body);
+      return res.status(200).json(updated);
+    } catch (error) {
+      if (error?.code === 403) return res.status(403).json({ error: 'Acesso negado' });
+      if (error?.code === 404) return res.status(404).json({ error: 'Conteúdo não encontrado' });
+      if (error?.code === 400) return res.status(400).json({ error: error.message || 'Dados inválidos' });
+      console.error('PATCH /contents/:id error:', error);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+  }
+
+  async deleteContent(req, res) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Não autorizado!' });
+      const { id } = req.params;
+
+      const result = await ContentService.deleteContent(userId, id);
+      return res.status(200).json({ success: true, ...result });
+    } catch (error) {
+      if (error?.code === 403) return res.status(403).json({ error: 'Acesso negado' });
+      if (error?.code === 404) return res.status(404).json({ error: 'Conteúdo não encontrado' });
+      console.error('DELETE /contents/:id error:', error);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+  }
 }
 
 export default new ContentController();
