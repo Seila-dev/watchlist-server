@@ -39,3 +39,6 @@ export async function authMiddleware(req, res, next) {
         res.status(401).json({ message: 'Failed authenticate token' })
     }
 }
+
+// Default export para compatibilidade
+export default authMiddleware;

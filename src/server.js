@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import dotenv from 'dotenv';
 // import { logger } from './utils/logger.js';
 // import { errorHandler } from './middlewares/Auth.js';
 // import { requestLogger } from './middlewares/Auth.js';
@@ -9,9 +10,10 @@ import rateLimit from 'express-rate-limit';
 // Importar rotas
 import contentRoutes from './routes/ContentRoutes.js';
 import usersRoutes from './routes/UsersRoutes.js';
-import authRouter from './routes/AuthRoutes.js'
+import authRouter from './routes/AuthRoutes.js';
 
 export const app = express();
+dotenv.config();
 
 app.set("trust proxy", 1);
 
