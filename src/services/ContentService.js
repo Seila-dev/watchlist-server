@@ -120,29 +120,48 @@ class ContentService {
     };
   }
 
-  async getContentById(userId, contentId) {
-    if (!contentId) {
-      const error = new Error('ID do conteúdo não fornecido');
-      error.code = 400;
-      throw error;
-    }
-
-    const content = await ContentRepository.findById(contentId);
-
-    if (!content || content.deletedAt) {
-      const error = new Error('Conteúdo não encontrado');
-      error.code = 404;
-      throw error;
-    }
-
-    if (content.ownerId !== userId) {
-      const error = new Error('Acesso negado ao conteúdo');
-      error.code = 403;
-      throw error;
-    }
-
-    return content;
+ async getContentById(requestingUserId, contentId) {
+  if (!contentId) {
+    const error = new Error('ID do conteúdo não fornecido');
+    error.code = 400;
+    throw error;
   }
+
+  const content = await ContentRepository.findById(contentId);
+
+  if (!content || content.deletedAt) {
+    const error = new Error('Conteúdo não encontrado');
+    error.code = 404;
+    throw error;
+  }
+
+  // Regra de acesso por visibilidade
+  const isOwner = content.ownerId === requestingUserId;
+
+  if (content.visibility === 'PRIVATE' && !isOwner) {
+    const error = new Error('Acesso negado ao conteúdo');
+    error.code = 403;
+    throw error;
+  }
+
+  // Só expõe os campos relevantes
+  return {
+    id: content.id,
+    title: content.title,
+    description: content.description,
+    category: content.category,
+    coverUrl: content.coverUrl,
+    visibility: content.visibility,
+    status: content.status,
+    rating: content.rating,
+    isFavorite: content.isFavorite,
+    startedAt: content.startedAt,
+    finishedAt: content.finishedAt,
+    createdAt: content.createdAt,
+    updatedAt: content.updatedAt,
+    ownerId: content.ownerId,
+  };
+}
 
   async getRecommendations(requestingUserId, contentId, { limit = 10, tags } = {}) {
     const base = await ContentRepository.findById(contentId);
@@ -347,7 +366,7 @@ class ContentService {
 
     if (algolia.enabled) {
       try {
-        await algolia.partialUpdateObject({
+        await algolia.saveObject({
           objectID: updated.id,
           title: updated.title,
           description: updated.description || '',

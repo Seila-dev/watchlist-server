@@ -28,12 +28,6 @@ class R2Storage {
     this.accountId = process.env.R2_ACCOUNT_ID;
     this.publicUrl = process.env.R2_PUBLIC_URL || 
       `https://${this.accountId}.r2.cloudflarestorage.com/${this.bucket}`;
-
-      console.log("R2 Config:", {
-  bucket: this.bucket,
-  endpoint: process.env.R2_ENDPOINT,
-  accountId: this.accountId,
-});
   }
 
   /**
