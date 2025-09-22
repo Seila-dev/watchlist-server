@@ -44,7 +44,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // app.use(requestLogger);
 
 // Rotas
-app.use('/content', contentRoutes);
+app.use('/contents', contentRoutes);
 app.use("/auth", authRouter)
 app.use("/users", usersRoutes)
 
