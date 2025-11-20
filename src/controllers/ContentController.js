@@ -418,6 +418,43 @@ class ContentController {
     }
   }
 
+  async updateContentStatus(req, res) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Não autorizado!' });
+      const { id } = req.params;
+      const { status } = req.body || {};
+      const updated = await ContentService.updateContentStatus(userId, id, status);
+      return res.status(200).json(updated);
+    } catch (error) {
+      if (error?.code === 403) return res.status(403).json({ error: 'Acesso negado' });
+      if (error?.code === 404) return res.status(404).json({ error: 'Conteúdo não encontrado' });
+      if (error?.code === 400) return res.status(400).json({ error: error.message || 'Dados inválidos' });
+      console.error('PATCH /contents/:id/status error:', error);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+  }
+
+  async updateContentVisibility(req, res) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Não autorizado!' });
+
+    const { id } = req.params;
+    const { visibility } = req.body || {};
+
+    const updated = await ContentService.updateContentVisibility(userId, id, { visibility });
+    return res.status(200).json(updated);
+  } catch (error) {
+    if (error?.code === 403) return res.status(403).json({ error: 'Acesso negado' });
+    if (error?.code === 404) return res.status(404).json({ error: 'Conteúdo não encontrado' });
+    if (error?.code === 400) return res.status(400).json({ error: error.message || 'Dados inválidos' });
+
+    console.error('PATCH /contents/:id/visibility error:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+}
+
   async deleteContent(req, res) {
     try {
       const userId = req.user?.id;

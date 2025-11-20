@@ -4,6 +4,8 @@ import auth from '../middlewares/Auth.js';
 
 const router = Router();
 
+// PATCH /contents/:id/status — mover status (kanban)
+
 router.get(
   '/', 
   auth, 
@@ -45,6 +47,18 @@ router.patch(
   '/:id',
   auth,
   (req, res) => ContentController.updateContent(req, res)
+);
+
+router.patch(
+  '/:id/status',
+  auth,
+  (req, res) => ContentController.updateContentStatus(req, res)
+);
+
+router.patch(
+  '/:id/visibility',
+  auth,
+  (req, res) => ContentController.updateContentVisibility(req, res)
 );
 
 router.delete(

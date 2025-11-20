@@ -323,7 +323,7 @@ class ContentService {
     }
 
     const updatable = {};
-    const fields = ['title','description','category','coverUrl','visibility','status','rating','isFavorite','startedAt','finishedAt'];
+    const fields = ['title', 'description', 'category', 'coverUrl', 'visibility', 'status', 'rating', 'isFavorite', 'startedAt', 'finishedAt'];
     for (const key of fields) {
       if (key in data) {
         updatable[key] = data[key];
@@ -363,6 +363,77 @@ class ContentService {
     return updated;
   }
 
+  async updateContentStatus(userId, id, statusInput) {
+    const status = typeof statusInput === 'string'
+      ? statusInput
+      : (statusInput && statusInput.status);
+
+
+    const existing = await ContentRepository.findByIdForOwnerChecks(id);
+    if (!existing) {
+      const error = new Error('Conteúdo não encontrado');
+      error.code = 404;
+      throw error;
+    }
+    if (existing.ownerId !== userId) {
+      const error = new Error('Acesso negado');
+      error.code = 403;
+      throw error;
+    }
+    const validStatuses = ['TO_WATCH', 'WATCHING', 'FINISHED'];
+    const normalized = typeof status === 'string' ? status.toUpperCase() : undefined;
+
+    if (!validStatuses.includes(normalized)) {
+      const error = new Error('Status inválido');
+      error.code = 400;
+      throw error;
+    }
+    const updated = await ContentRepository.updateById(id, { status: normalized });
+    return updated;
+  }
+
+  async updateContentVisibility(userId, id, { visibility }) {
+    const existing = await ContentRepository.findByIdForOwnerChecks(id);
+
+    if (!existing) {
+      const error = new Error('Conteúdo não encontrado');
+      error.code = 404;
+      throw error;
+    }
+
+    if (existing.ownerId !== userId) {
+      const error = new Error('Acesso negado');
+      error.code = 403;
+      throw error;
+    }
+
+    const validVisibilities = ['PUBLIC', 'UNLISTED', 'PRIVATE'];
+    const normalized = typeof visibility === 'string' ? visibility.toUpperCase() : null;
+
+    if (!validVisibilities.includes(normalized)) {
+      const error = new Error('Visibilidade inválida (use PUBLIC, UNLISTED ou PRIVATE)');
+      error.code = 400;
+      throw error;
+    }
+
+    const updated = await ContentRepository.updateById(id, { visibility: normalized });
+
+    // Atualizar no Algolia
+    if (algolia.enabled) {
+      try {
+        await algolia.partialUpdateObject({
+          objectID: updated.id,
+          visibility: updated.visibility,
+          updatedAt: updated.updatedAt,
+        });
+      } catch (err) {
+        console.error('Algolia update error (visibility):', err);
+      }
+    }
+
+    return updated;
+  }
+
   async deleteContent(userId, id) {
     const existing = await ContentRepository.findByIdForOwnerChecks(id);
     if (!existing) {
@@ -383,7 +454,7 @@ class ContentService {
         if (key) {
           await r2Storage.deleteFile(key);
         }
-      } catch (_) {}
+      } catch (_) { }
     }
 
     await ContentRepository.softDeleteById(id, new Date());

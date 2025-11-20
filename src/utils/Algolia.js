@@ -134,6 +134,37 @@ export const algolia = {
             return false;
         }
     },
+
+     async partialUpdateObject(object) {
+        if (!this.enabled || !this.client) return false;
+
+        if (!object || (!object.objectID && !object.id)) {
+            console.error('partialUpdateObject: object must have objectID or id');
+            return false;
+        }
+
+        if (!object.objectID && object.id) {
+            object.objectID = object.id;
+        }
+
+        try {
+            await this.client.batch({
+                indexName: this.indexName,
+                batchWriteParams: {
+                    requests: [
+                        {
+                            action: 'partialUpdateObject',
+                            body: object
+                        }
+                    ]
+                }
+            });
+            return true;
+        } catch (error) {
+            console.error('Algolia partial update error:', error);
+            return false;
+        }
+    },
     
     async deleteObject(objectID) {
         if (!this.enabled || !this.client) return false;
