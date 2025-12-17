@@ -121,28 +121,32 @@ class ContentService {
   }
 
   async getContentById(userId, contentId) {
-    if (!contentId) {
-      const error = new Error('ID do conteúdo não fornecido');
-      error.code = 400;
-      throw error;
-    }
-
-    const content = await ContentRepository.findById(contentId);
-
-    if (!content || content.deletedAt) {
-      const error = new Error('Conteúdo não encontrado');
-      error.code = 404;
-      throw error;
-    }
-
-    if (content.ownerId !== userId) {
-      const error = new Error('Acesso negado ao conteúdo');
-      error.code = 403;
-      throw error;
-    }
-
-    return content;
+  if (!contentId) {
+    const error = new Error('ID do conteúdo não fornecido');
+    error.code = 400;
+    throw error;
   }
+
+  // Primeiro verifica se o conteúdo existe
+  const content = await ContentRepository.findById(contentId);
+
+  if (!content || content.deletedAt) {
+    const error = new Error('Conteúdo não encontrado');
+    error.code = 404;
+    throw error;
+  }
+
+  // Verifica autorização e busca detalhes completos
+  const detailedContent = await ContentRepository.findDetailsAuthorized(userId, contentId);
+
+  if (!detailedContent) {
+    const error = new Error('Acesso negado ao conteúdo');
+    error.code = 403;
+    throw error;
+  }
+
+  return detailedContent;
+}
 
   async getRecommendations(requestingUserId, contentId, { limit = 10, tags } = {}) {
     const base = await ContentRepository.findById(contentId);
