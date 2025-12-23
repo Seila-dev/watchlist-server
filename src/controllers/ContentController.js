@@ -25,6 +25,36 @@ class ContentController {
     }
   }
 
+  async getHomeContents(req, res) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Não autorizado!' });
+
+      // Query params: statuses=WATCHING,TO_WATCH&limit=15&category=MOVIES
+      const { statuses, limit = 15, category } = req.query;
+
+      const statusesList = statuses
+        ? String(statuses).split(',').map(s => s.trim().toUpperCase()).filter(Boolean)
+        : DEFAULT_HOME_STATUSES;
+
+      const numericLimit = Math.max(1, Math.min(100, Number(limit) || 15)); 
+
+      const data = await ContentService.listHomeContents(userId, {
+        statuses: statusesList,
+        limitPerStatus: numericLimit,
+        category: category ? String(category).toUpperCase() : undefined,
+      });
+
+      return res.status(200).json({
+        sliders: data, // array: [{ status, items, count }]
+        requested: { statuses: statusesList, limit: numericLimit, category },
+      });
+    } catch (error) {
+      console.error('GET /contents/home error:', error);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+  }
+
   async getContentsByCategory(req, res) {
     try {
       const userId = req.user?.id; 
