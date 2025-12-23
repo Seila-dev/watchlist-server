@@ -120,54 +120,52 @@ class ContentService {
   //   };
   // }
 
-   /**
-   * Retorna N itens por status (paralelo, determinístico)
-   * @param {string} userId
-   * @param {Object} options
-   * @param {string[]} options.statuses
-   * @param {number} options.limitPerStatus
-   * @param {string} [options.category]
-   */
-  async listHomeContents(userId, { statuses = [], limitPerStatus = 15, category } = {}) {
-    if (!userId) throw Object.assign(new Error('userId required'), { code: 400 });
+   async getHomeContents(userId, { limit = 15, category } = {}) {
+  const baseFilters = {
+    ownerId: userId,
+    deletedAt: null,
+  };
 
-    // sanitize
-    const normalizedStatuses = Array.isArray(statuses) && statuses.length > 0
-      ? statuses.map(s => String(s).toUpperCase())
-      : ['WATCHING', 'TO_WATCH', 'FINISHED'];
-
-    // order: createdAt desc, id desc (determinístico)
-    const orderBy = [{ createdAt: 'desc' }, { id: 'desc' }];
-
-    // Monta promises paralelas — para cada status pega up to limitPerStatus
-    const promises = normalizedStatuses.map(async (status) => {
-      const where = {
-        ownerId: userId,
-        deletedAt: null,
-        status: status,
-      };
-
-      if (category) where.category = category;
-
-      // Pegar items (skip=0 take=limitPerStatus)
-      const itemsPromise = ContentRepository.findAllWithPagination(where, 0, Number(limitPerStatus), orderBy);
-
-      // Opcional: contar total daquele status (útil para "ver mais")
-      const countPromise = ContentRepository.count(where);
-
-      const [items, count] = await Promise.all([itemsPromise, countPromise]);
-
-      return {
-        status,
-        items,
-        count,
-      };
-    });
-
-    const sliders = await Promise.all(promises);
-
-    return sliders;
+  if (category) {
+    baseFilters.category = category.toUpperCase();
   }
+
+  const orderBy = { createdAt: 'desc' };
+
+  // Busca em paralelo para performance
+  const [watching, toWatch, finished] = await Promise.all([
+    ContentRepository.findAllWithPagination(
+      { ...baseFilters, status: 'WATCHING' },
+      0,
+      Number(limit),
+      orderBy
+    ),
+    ContentRepository.findAllWithPagination(
+      { ...baseFilters, status: 'TO_WATCH' },
+      0,
+      Number(limit),
+      orderBy
+    ),
+    ContentRepository.findAllWithPagination(
+      { ...baseFilters, status: 'FINISHED' },
+      0,
+      Number(limit),
+      orderBy
+    ),
+  ]);
+
+  return {
+    sliders: {
+      watching,
+      toWatch,
+      finished,
+    },
+    requested: {
+      limit: Number(limit),
+      category: category || 'all',
+    },
+  };
+}
 
   // Ajuste recomendação: tornar listContents deterministic (adicionando id secondary)
   async listContents(userId, query) {
