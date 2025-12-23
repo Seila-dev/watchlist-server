@@ -59,6 +59,12 @@ router.get(
 );
 
 router.get(
+  '/home',
+  auth,
+  (req, res) => ContentController.getHomeContents(req, res)
+);
+
+router.get(
   '/:id',
   auth,
   (req, res) => ContentController.getContentById(req, res)

@@ -68,23 +68,114 @@ class ContentService {
     return content;
   }
 
-  async listContents(userId, query) {
-    const {
-      status,
-      q,
-      category,
-      page = 1,
-      limit = 10,
-      sort = 'recent',
-    } = query;
+  // async listContents(userId, query) {
+  //   const {
+  //     status,
+  //     q,
+  //     category,
+  //     page = 1,
+  //     limit = 10,
+  //     sort = 'recent',
+  //   } = query;
 
+  //   const skip = (Number(page) - 1) * Number(limit);
+
+  //   const filters = {
+  //     ownerId: userId,
+  //     deletedAt: null,
+  //   };
+
+  //   if (status) filters.status = status.toUpperCase();
+  //   if (category) filters.category = category.toUpperCase();
+  //   if (q) {
+  //     filters.OR = [
+  //       { title: { contains: q, mode: 'insensitive' } },
+  //       { description: { contains: q, mode: 'insensitive' } }
+  //     ];
+  //   }
+
+  //   let orderBy;
+  //   if (sort === 'popular') {
+  //     orderBy = [
+  //       { favorites: { _count: 'desc' } },
+  //       { reactions: { _count: 'desc' } },
+  //       { createdAt: 'desc' },
+  //     ];
+  //   } else if (sort === 'updated') {
+  //     orderBy = { updatedAt: 'desc' };
+  //   } else {
+  //     orderBy = { createdAt: 'desc' };
+  //   }
+
+  //   const [items, total] = await Promise.all([
+  //     ContentRepository.findAllWithPagination(filters, skip, Number(limit), orderBy),
+  //     ContentRepository.count(filters),
+  //   ]);
+
+  //   return {
+  //     items,
+  //     page: Number(page),
+  //     limit: Number(limit),
+  //     total,
+  //   };
+  // }
+
+   /**
+   * Retorna N itens por status (paralelo, determinístico)
+   * @param {string} userId
+   * @param {Object} options
+   * @param {string[]} options.statuses
+   * @param {number} options.limitPerStatus
+   * @param {string} [options.category]
+   */
+  async listHomeContents(userId, { statuses = [], limitPerStatus = 15, category } = {}) {
+    if (!userId) throw Object.assign(new Error('userId required'), { code: 400 });
+
+    // sanitize
+    const normalizedStatuses = Array.isArray(statuses) && statuses.length > 0
+      ? statuses.map(s => String(s).toUpperCase())
+      : ['WATCHING', 'TO_WATCH', 'FINISHED'];
+
+    // order: createdAt desc, id desc (determinístico)
+    const orderBy = [{ createdAt: 'desc' }, { id: 'desc' }];
+
+    // Monta promises paralelas — para cada status pega up to limitPerStatus
+    const promises = normalizedStatuses.map(async (status) => {
+      const where = {
+        ownerId: userId,
+        deletedAt: null,
+        status: status,
+      };
+
+      if (category) where.category = category;
+
+      // Pegar items (skip=0 take=limitPerStatus)
+      const itemsPromise = ContentRepository.findAllWithPagination(where, 0, Number(limitPerStatus), orderBy);
+
+      // Opcional: contar total daquele status (útil para "ver mais")
+      const countPromise = ContentRepository.count(where);
+
+      const [items, count] = await Promise.all([itemsPromise, countPromise]);
+
+      return {
+        status,
+        items,
+        count,
+      };
+    });
+
+    const sliders = await Promise.all(promises);
+
+    return sliders;
+  }
+
+  // Ajuste recomendação: tornar listContents deterministic (adicionando id secondary)
+  async listContents(userId, query) {
+    // existing code but ensure deterministic order
+    const { status, q, category, page = 1, limit = 10, sort = 'recent' } = query;
     const skip = (Number(page) - 1) * Number(limit);
 
-    const filters = {
-      ownerId: userId,
-      deletedAt: null,
-    };
-
+    const filters = { ownerId: userId, deletedAt: null };
     if (status) filters.status = status.toUpperCase();
     if (category) filters.category = category.toUpperCase();
     if (q) {
@@ -100,11 +191,12 @@ class ContentService {
         { favorites: { _count: 'desc' } },
         { reactions: { _count: 'desc' } },
         { createdAt: 'desc' },
+        { id: 'desc' },
       ];
     } else if (sort === 'updated') {
-      orderBy = { updatedAt: 'desc' };
+      orderBy = [{ updatedAt: 'desc' }, { id: 'desc' }];
     } else {
-      orderBy = { createdAt: 'desc' };
+      orderBy = [{ createdAt: 'desc' }, { id: 'desc' }];
     }
 
     const [items, total] = await Promise.all([
