@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import ContentController from '../controllers/ContentController.js';
+import AnnotationController from '../controllers/AnnotationController.js';
 import auth from '../middlewares/Auth.js';
 
 const router = Router();

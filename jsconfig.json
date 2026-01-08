@@ -2,11 +2,17 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "NodeNext",
-    "checkJs": false,
     "moduleResolution": "NodeNext",
+
+    "checkJs": false, // coloque true em desenvolvimento
+    "allowJs": true,
+
+    "noEmit": true,
+
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
   },
-  "exclude": ["node_modules"],
+  "include": ["src/**/*.js"],
+  "exclude": ["node_modules"]
 }
