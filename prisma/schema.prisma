@@ -358,6 +358,7 @@ model Annotation {
   contentId String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
+  title     String?
   text      String
   isPinned  Boolean   @default(false) @map("is_pinned")
   isPublic  Boolean   @default(false) @map("is_public")
