@@ -29,6 +29,25 @@ router.get(
 );
 
 router.get(
+  '/home',
+  auth,
+  (req, res) => ContentController.getHomeContents(req, res)
+);
+
+router.post(
+  '/:contentId/annotations',
+  auth,
+  (req, res) => AnnotationController.createAnnotation(req, res)
+);
+
+// Listar anotações de um conteúdo
+router.get(
+  '/:contentId/annotations',
+  auth,
+  (req, res) => AnnotationController.getAnnotationsByContent(req, res)
+);
+
+router.get(
   '/:id/recommendations',
   auth,
   (req, res) => ContentController.getRecommendations(req, res)
@@ -56,12 +75,6 @@ router.get(
   '/', 
   auth, 
   (req, res) => ContentController.getContents(req, res)
-);
-
-router.get(
-  '/home',
-  auth,
-  (req, res) => ContentController.getHomeContents(req, res)
 );
 
 router.get(

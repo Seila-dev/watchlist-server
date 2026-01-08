@@ -9,6 +9,7 @@ import dotenv from 'dotenv';
 
 // Importar rotas
 import contentRoutes from './routes/ContentRoutes.js';
+import annotationRoutes from './routes/AnnotationRoutes.js';
 import usersRoutes from './routes/UsersRoutes.js';
 import authRouter from './routes/AuthRoutes.js';
 
@@ -45,6 +46,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Rotas
 app.use('/contents', contentRoutes);
+app.use('/annotations', annotationRoutes);
 app.use("/auth", authRouter)
 app.use("/users", usersRoutes)
 
