@@ -2,7 +2,14 @@ import { prisma } from '../database/client.js';
 
 class AnnotationRepository {
   async findByContentId(contentId, userId, options = {}) {
-    const { skip = 0, take = 50, orderBy = { isPinned: 'desc', createdAt: 'desc' } } = options;
+    const {
+  skip = 0,
+  take = 50,
+  orderBy = [
+    { isPinned: 'desc' },
+    { createdAt: 'desc' }
+  ],
+} = options;
 
     return await prisma.annotation.findMany({
       where: {
