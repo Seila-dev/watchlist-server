@@ -118,7 +118,6 @@ class AnnotationService {
       }
 
       updatable.text = data.text.trim();
-      updatable.isEdited = true;
     }
 
     if ('isPublic' in data) {
